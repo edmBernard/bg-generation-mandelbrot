@@ -37,10 +37,10 @@ static const struct
   float r, g, b;
 } vertices[4] =
     {
-        {0.f, 0.f, 1.f, 0.f, 0.f},
-        {0.f, 1.f, 0.f, 1.f, 0.f},
-        {1.f, 1.f, 0.f, 0.f, 1.f},
-        {1.f, 0.f, 1.f, 0.f, 0.f}};
+        {-1.f, -1.f, 1.f, 0.f, 0.f},
+        {-1.f,  1.f, 0.f, 1.f, 0.f},
+        { 1.f,  1.f, 0.f, 0.f, 1.f},
+        { 1.f, -1.f, 1.f, 0.f, 0.f}};
 
 static const std::vector<uint16_t> indices = {
       0, 1, 2,
@@ -60,6 +60,7 @@ int main(void) {
   GLFWwindow *window;
   GLuint vertex_buffer, indices_buffer, vertex_shader, fragment_shader, program;
   GLint mvp_location, vpos_location, vcol_location;
+  GLint resolution_location;
 
   glfwSetErrorCallback(error_callback);
 
@@ -107,6 +108,7 @@ int main(void) {
   glAttachShader(program, fragment_shader);
   glLinkProgram(program);
 
+  resolution_location = glGetUniformLocation(program, "resolution");
   mvp_location = glGetUniformLocation(program, "MVP");
   vpos_location = glGetAttribLocation(program, "vPos");
   vcol_location = glGetAttribLocation(program, "vCol");
@@ -134,6 +136,10 @@ int main(void) {
 
     glUseProgram(program);
     glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *)mvp);
+
+    vec2 windowsSize{width, height};
+    glUniform2fv(resolution_location, 1, (const GLfloat *)windowsSize);
+
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     glDrawArrays(GL_QUADS, 0, 4);
     // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);  // Use index buffer registered
