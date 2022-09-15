@@ -3,6 +3,7 @@
 out vec4 fragColor;
 
 uniform vec2 resolution;
+uniform vec2 cursor;
 uniform float time;
 
 const float MAX_ITER = 128.0;
@@ -40,10 +41,13 @@ float mandelbrot(vec2 uv) {
   // c = c / pow(time, 4.0) - vec2(0.65, 0.45);
   // vec2 z = vec2(0.0);
 
-  // julia
-  vec2 c = vec2(-0.8, 0.156);
-  vec2 z = 4.0 * uv;
-  z = z / pow(time, 4.0) - vec2(0.25, 0.15);
+  // julia fixed
+  // vec2 c = vec2(-0.8, 0.156);
+  // vec2 z = uv;
+
+  // Julia on cursor position
+  vec2 c = (cursor  - 0.5 * resolution.xy) / resolution.y;
+  vec2 z = uv;
 
   for (float i = 0.0; i < MAX_ITER; ++i) {
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;

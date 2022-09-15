@@ -71,7 +71,7 @@ int main(void) {
   GLFWwindow *window;
   GLuint vertex_buffer, indices_buffer, vertex_shader, fragment_shader, program;
   GLint mvp_location, vpos_location, vcol_location;
-  GLint resolution_location, time_location;
+  GLint resolution_location, time_location, cursor_location;
 
   glfwSetErrorCallback(error_callback);
 
@@ -120,6 +120,8 @@ int main(void) {
   glLinkProgram(program);
 
   resolution_location = glGetUniformLocation(program, "resolution");
+  cursor_location = glGetUniformLocation(program, "cursor");
+
   time_location = glGetUniformLocation(program, "time");
   mvp_location = glGetUniformLocation(program, "MVP");
   vpos_location = glGetAttribLocation(program, "vPos");
@@ -146,12 +148,17 @@ int main(void) {
     mat4x4_ortho(p, -ratio, ratio, -1.f, 1.f, 1.f, -1.f);
     mat4x4_mul(mvp, p, m);
 
-    glUseProgram(program);
-    glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *)mvp);
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    const vec2 cursorPosition{static_cast<float>(xpos), static_cast<float>(ypos)};
+    glUniform2fv(cursor_location, 1, (const GLfloat *)cursorPosition);
 
-    vec2 windowsSize{width, height};
+    const vec2 windowsSize{width, height};
     glUniform2fv(resolution_location, 1, (const GLfloat *)windowsSize);
     glUniform1f(time_location, (float)glfwGetTime());
+
+    glUseProgram(program);
+    glUniformMatrix4fv(mvp_location, 1, GL_FALSE, (const GLfloat *)mvp);
 
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     glDrawArrays(GL_QUADS, 0, 4);
