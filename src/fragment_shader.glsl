@@ -3,11 +3,13 @@
 out vec4 fragColor;
 
 uniform vec2 resolution;
+uniform float time;
 
 const float MAX_ITER = 128.0;
 
 float mandelbrot(vec2 uv) {
-  vec2 c = 5.0 * uv - vec2(0.7, 0.0);
+  vec2 c = 4.0 * uv - vec2(0.7, 0.0);
+  c = c / pow(time, 4.0) - vec2(0.65, 0.45);
   vec2 z = vec2(0.0);
   for (float i = 0.0; i < MAX_ITER; ++i) {
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
@@ -25,5 +27,6 @@ void main()
   float m = mandelbrot(uv);
 
   col += m;
+  col = pow(col, vec3(0.45));
   fragColor = vec4(col, 1.0);
 }

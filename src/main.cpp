@@ -60,7 +60,7 @@ int main(void) {
   GLFWwindow *window;
   GLuint vertex_buffer, indices_buffer, vertex_shader, fragment_shader, program;
   GLint mvp_location, vpos_location, vcol_location;
-  GLint resolution_location;
+  GLint resolution_location, time_location;
 
   glfwSetErrorCallback(error_callback);
 
@@ -109,6 +109,7 @@ int main(void) {
   glLinkProgram(program);
 
   resolution_location = glGetUniformLocation(program, "resolution");
+  time_location = glGetUniformLocation(program, "time");
   mvp_location = glGetUniformLocation(program, "MVP");
   vpos_location = glGetAttribLocation(program, "vPos");
   vcol_location = glGetAttribLocation(program, "vCol");
@@ -139,6 +140,7 @@ int main(void) {
 
     vec2 windowsSize{width, height};
     glUniform2fv(resolution_location, 1, (const GLfloat *)windowsSize);
+    glUniform1f(time_location, (float)glfwGetTime());
 
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     glDrawArrays(GL_QUADS, 0, 4);
