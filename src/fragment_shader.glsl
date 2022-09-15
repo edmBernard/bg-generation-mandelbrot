@@ -34,9 +34,17 @@ vec3 hslToRgb(float h, float s, float l) {
 }
 
 float mandelbrot(vec2 uv) {
-  vec2 c = 4.0 * uv - vec2(0.7, 0.0);
-  c = c / pow(time, 4.0) - vec2(0.65, 0.45);
-  vec2 z = vec2(0.0);
+
+  // mandelbrot
+  // vec2 c = 4.0 * uv - vec2(0.7, 0.0);
+  // c = c / pow(time, 4.0) - vec2(0.65, 0.45);
+  // vec2 z = vec2(0.0);
+
+  // julia
+  vec2 c = vec2(-0.8, 0.156);
+  vec2 z = 4.0 * uv;
+  z = z / pow(time, 4.0) - vec2(0.25, 0.15);
+
   for (float i = 0.0; i < MAX_ITER; ++i) {
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
     if (dot(z, z) > 4.0) {
@@ -59,7 +67,8 @@ void main()
   float m = mandelbrot(uv);
 
   if (m != 0.0) {
-    col = hslToRgb(m + 0.6, 0.5, 0.5);
+    // col = hslToRgb(m + 0.6, 0.5, 0.5);
+    col = hslToRgb(0.6, 0.8, m);
   }
   fragColor = vec4(col, 1.0);
 }
