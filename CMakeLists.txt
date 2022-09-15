@@ -14,12 +14,13 @@ find_package(fmt CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 
+find_path(STB_INCLUDE_DIRS "stb_image_write.h")
 find_path(LINMATH_INCLUDE_DIRS "linmath.h/linmath.h")
 
 #**************************************************************************************************
 # Include *****************************************************************************************
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-message(Error ${LINMATH_INCLUDE_DIRS})
+include_directories(${STB_INCLUDE_DIRS})
 include_directories(${LINMATH_INCLUDE_DIRS})
 
 # get_cmake_property(_variableNames VARIABLES)

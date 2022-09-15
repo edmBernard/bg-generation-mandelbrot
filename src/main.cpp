@@ -4,6 +4,9 @@
 
 #include "linmath.h/linmath.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -54,6 +57,14 @@ static void error_callback(int error, const char *description) {
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+  if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    std::vector<float> buffer(width * height * 3);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
+    stbi_write_png("mandelbrot.png", width, height, 3, buffer.data(), width * 3);
+  }
 }
 
 int main(void) {
@@ -70,7 +81,7 @@ int main(void) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
-  window = glfwCreateWindow(2000, 1000, "Simple example", NULL, NULL);
+  window = glfwCreateWindow(3840, 2400, "Simple example", NULL, NULL);
   if (!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
