@@ -38,7 +38,7 @@ jobs:
         git clone https://github.com/Microsoft/vcpkg.git
         cd vcpkg
         ./bootstrap-vcpkg.sh
-        ./vcpkg install cxxopts:${{ matrix.config.triplet }} fmt:${{ matrix.config.triplet }} spdlog:${{ matrix.config.triplet }} stb:${{ matrix.config.triplet }} glfw:${{ matrix.config.triplet }} glad:${{ matrix.config.triplet }} linmath:${{ matrix.config.triplet }}
+        ./vcpkg install cxxopts:${{ matrix.config.triplet }} fmt:${{ matrix.config.triplet }} spdlog:${{ matrix.config.triplet }} stb:${{ matrix.config.triplet }} glfw3:${{ matrix.config.triplet }} glad:${{ matrix.config.triplet }} linmath:${{ matrix.config.triplet }}
     - name: check vcpkg
       run: |
         cd vcpkg
