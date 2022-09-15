@@ -1,7 +1,5 @@
 #version 460
 
-out vec4 fragColor;
-
 uniform vec2 resolution;
 uniform vec2 cursor;
 uniform float time;
@@ -66,13 +64,13 @@ float mandelbrot(vec2 uv) {
 void main()
 {
   vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
-  vec3 col = vec3(0.0);
 
   float m = mandelbrot(uv);
 
+  vec3 col = vec3(0.0);
   if (m != 0.0) {
     // col = hslToRgb(m + 0.6, 0.5, 0.5);
     col = hslToRgb(0.6, 0.8, m);
   }
-  fragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
