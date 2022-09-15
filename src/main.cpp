@@ -96,14 +96,14 @@ int main(int argc, char *argv[]) try {
 
   GLuint vertex_shader;
   vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-  auto vertex_shader_text = readFile("../src/vertex_shader.glsl");
+  auto vertex_shader_text = readFile("shaders/vertex_shader.glsl");
   const char* vertex_shader_data = vertex_shader_text.c_str();
   glShaderSource(vertex_shader, 1, &vertex_shader_data, NULL);
   glCompileShader(vertex_shader);
 
   GLuint fragment_shader;
   fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  auto fragment_shader_text = readFile("../src/fragment_shader.glsl");
+  auto fragment_shader_text = readFile("shaders/fragment_shader.glsl");
   const char* fragment_shader_data = fragment_shader_text.c_str();
   glShaderSource(fragment_shader, 1, &fragment_shader_data, NULL);
   glCompileShader(fragment_shader);
