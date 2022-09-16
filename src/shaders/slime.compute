@@ -1,0 +1,33 @@
+#version 430
+
+uniform vec4 particule_buffer;
+layout (local_size_x = 1, local_size_y = 1) in;
+layout (rgba32f, binding = 0) uniform image2D img_output;
+
+struct data
+{
+  float x;
+  float y;
+  float vx;
+  float vy;
+};
+
+layout(std430, binding = 3) buffer layoutName
+{
+  data data_SSBO[];
+};
+
+void main () {
+    float value = particule_buffer[gl_GlobalInvocationID.x];
+    data_SSBO[gl_GlobalInvocationID.x].vx += 0.1;
+    data_SSBO[gl_GlobalInvocationID.x].vy += 0.1;
+
+    for (int i = 0; i < 100; ++i) {
+      for (int j = 0; j < 100; ++j) {
+        ivec2 gid = ivec2(i +  100 * (gl_GlobalInvocationID.x+1) + 100 * data_SSBO[gl_GlobalInvocationID.x].vx, j * (gl_GlobalInvocationID.y+1) + 100 * data_SSBO[gl_GlobalInvocationID.x].vy); //  particles[gl_GlobalInvocationID.xy].xy;
+        ivec2 dims = imageSize(img_output);
+        vec4 pixel = vec4(data_SSBO[gl_GlobalInvocationID.x].x, 0.0, 1.0, 1.0);
+        imageStore(img_output, gid, pixel);
+      }
+    }
+}

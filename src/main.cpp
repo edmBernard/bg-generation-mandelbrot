@@ -1,29 +1,7 @@
-/*
-Compute shader hello world.
 
-Does a simple computation, and writes it directly to the
-texture seen by the frament shader.
-
-This could be done easily on a fragment shader,
-so this is is just an useless sanity check example.
-
-The main advantage of compute shaders (which we are not doing here),
-is that they can keep state data on the GPU between draw calls.
-
-This is basically the upper limit speed of compute to texture operations,
-since we are only doing a very simple operaiton on the shader.
-
-TODO understand:
-
-GL_MAX_COMPUTE_WORK_GROUP_COUNT
-GL_MAX_COMPUTE_WORK_GROUP_SIZE
-GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS
-glDispatchCompute
-glMemoryBarrier
-local_size_x
-binding
-*/
-
+#include <spdlog/cfg/env.h>
+#include <spdlog/spdlog.h>
+#include <fmt/core.h>
 
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
@@ -39,6 +17,25 @@ binding
 #include <iostream>
 #include <vector>
 #include <chrono>
+
+std::string readFile(const char *filePath) {
+  std::string content;
+  std::ifstream fileStream(filePath, std::ios::in);
+
+  if(!fileStream.is_open()) {
+    spdlog::error("Could not read file {}. File does not exist.", filePath);
+    throw std::runtime_error("File not found");
+  }
+
+  std::string line = "";
+  while(!fileStream.eof()) {
+      std::getline(fileStream, line);
+      content.append(line + "\n");
+  }
+
+  fileStream.close();
+  return content;
+}
 
 /* Build and compile shader program, return its ID. */
 GLuint common_get_shader_program(
@@ -120,8 +117,8 @@ GLuint common_get_compute_program(const char *source) {
     return program;
 }
 
-static const GLuint WIDTH = 400;
-static const GLuint HEIGHT = 400;
+static const GLuint WIDTH = 1000;
+static const GLuint HEIGHT = 1000;
 static const GLfloat vertices_xy_uv[] = {
     -1.0,  1.0, 0.0, 1.0,
      1.0,  1.0, 0.0, 0.0,
@@ -130,65 +127,14 @@ static const GLfloat vertices_xy_uv[] = {
 };
 static const std::vector<GLfloat> particles_xy_vxy = {
      1.0,  0.5, 0.1, 0.1,
-     0.7,  0.5, 0.1, 0.1,
+     0.7,  0.5, 0.1, -0.1,
      0.5, -0.5, 0.1, 0.1,
-     0.2, -0.5, 0.1, 0.1,
+     0.2, -0.5, 0.1, -0.1,
 };
 static const GLuint indices[] = {
     0, 1, 2,
     0, 2, 3,
 };
-
-static const GLchar *vertex_shader_source =
-    "#version 330 core\n"
-    "in vec2 coord2d;\n"
-    "in vec2 vertexUv;\n"
-    "out vec2 fragmentUv;\n"
-    "void main() {\n"
-    "    gl_Position = vec4(coord2d, 0, 1);\n"
-    "    fragmentUv = vertexUv;\n"
-    "}\n";
-static const GLchar *fragment_shader_source =
-    "#version 330 core\n"
-    "in vec2 fragmentUv;\n"
-    "out vec3 color;\n"
-    "uniform sampler2D textureSampler;\n"
-    "void main() {\n"
-    "    color = texture(textureSampler, fragmentUv.yx).rgb;\n"
-    "}\n";
-static const char *compute_shader_source =
-    "#version 430\n"
-    // "in vec2 p_coord2d;\n"
-    // "in vec2 p_velocity;\n"
-    "uniform vec4 particule_buffer;\n"
-    "layout (local_size_x = 1, local_size_y = 1) in;\n"
-    "layout (rgba32f, binding = 0) uniform image2D img_output;\n"
-    // "layout (rgba32f, binding = 3) uniform image2D particles;\n"
-    "struct data\n"
-    "{\n"
-    "  float x;\n"
-    "  float y;\n"
-    "  float vx;\n"
-    "  float vy;\n"
-    "};\n"
-    "layout(std430, binding = 3) buffer layoutName\n"
-    "{\n"
-    "  data data_SSBO[];\n"
-    "};\n"
-    "void main () {\n"
-    "    float value = particule_buffer[gl_GlobalInvocationID.x];\n"
-    "        data_SSBO[gl_GlobalInvocationID.x].vx += 0.1;\n"
-    "        data_SSBO[gl_GlobalInvocationID.x].vy += 0.1;\n"
-    "    for (int i = 0; i < 100; ++i) {\n"
-    "      for (int j = 0; j < 100; ++j) {\n"
-    // "        ivec2 gid = ivec2(gl_GlobalInvocationID.xy);\n" //  particles[gl_GlobalInvocationID.xy].xy;\n"
-    "        ivec2 gid = ivec2(i +  100 * (gl_GlobalInvocationID.x+1) + 100 * data_SSBO[gl_GlobalInvocationID.x].vx, j * (gl_GlobalInvocationID.y+1) + 100 * data_SSBO[gl_GlobalInvocationID.x].vy);\n" //  particles[gl_GlobalInvocationID.xy].xy;\n"
-    "        ivec2 dims = imageSize(img_output);\n"
-    "        vec4 pixel = vec4(data_SSBO[gl_GlobalInvocationID.x].x, 0.0, 1.0, 1.0);\n"
-    "        imageStore(img_output, gid, pixel);\n"
-    "      }\n"
-    "    }\n"
-    "}\n";
 
 int main(void) {
     GLFWwindow *window;
@@ -219,14 +165,19 @@ int main(void) {
     glfwMakeContextCurrent(window);
     gladLoadGL();
 
-
     /* Shader. */
+    auto vertex_shader_text = readFile("shaders/slime.vert");
+    const char* vertex_shader_source = vertex_shader_text.c_str();
+    auto fragment_shader_text = readFile("shaders/slime.frag");
+    const char* fragment_shader_source = fragment_shader_text.c_str();
     program = common_get_shader_program(vertex_shader_source, fragment_shader_source);
     coord2d_location = glGetAttribLocation(program, "coord2d");
     vertexUv_location = glGetAttribLocation(program, "vertexUv");
     textureSampler_location = glGetUniformLocation(program, "textureSampler");
 
     /* Compute shader. */
+    auto compute_shader_text = readFile("shaders/slime.compute");
+    const char* compute_shader_source = compute_shader_text.c_str();
     compute_program = common_get_compute_program(compute_shader_source);
     p_velocity_location = glGetAttribLocation(program, "p_velocity");
 
