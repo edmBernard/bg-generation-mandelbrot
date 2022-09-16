@@ -125,7 +125,7 @@ GLuint common_get_compute_program(const char *source) {
     return program;
 }
 
-static const GLuint WIDTH = 1000;
+static const GLuint WIDTH = 2000;
 static const GLuint HEIGHT = 1000;
 static const GLfloat vertices_xy_uv[] = {
     -1.0,  1.0, 0.0, 1.0,
@@ -184,8 +184,6 @@ int main(void) {
     GLuint
         ebo,
         program,
-        compute_program,
-        texture,
         vbo,
         vao
     ;
@@ -211,11 +209,15 @@ int main(void) {
     vertexUv_location = glGetAttribLocation(program, "vertexUv");
     textureSampler_location = glGetUniformLocation(program, "textureSampler");
 
-    /* Compute shader. */
+    // Particle shader
     auto compute_shader_text = readFile("shaders/slime.compute");
     const char* compute_shader_source = compute_shader_text.c_str();
-    compute_program = common_get_compute_program(compute_shader_source);
-    p_velocity_location = glGetAttribLocation(program, "p_velocity");
+    GLuint compute_program = common_get_compute_program(compute_shader_source);
+
+    // Blur shader
+    auto blur_compute_shader_text = readFile("shaders/blur.compute");
+    const char* blur_compute_shader_source = blur_compute_shader_text.c_str();
+    GLuint blur_compute_program = common_get_compute_program(blur_compute_shader_source);
 
     /* vbo */
     glGenBuffers(1, &vbo);
@@ -246,23 +248,27 @@ int main(void) {
     glEnableVertexAttribArray(vertexUv_location);
     glBindVertexArray(0);
 
-    /* Texture. */
-    glGenTextures(1, &texture);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    // glBindBuffer(GL_ARRAY_BUFFER, pab);
-    // glVertexAttribPointer(p_coord2d_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(particles_xy_vxy[0]), (GLvoid*)0);
-    // glEnableVertexAttribArray(p_coord2d_location);
-    // glVertexAttribPointer(p_velocity_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(particles_xy_vxy[0]), (GLvoid*)(2 * sizeof(particles_xy_vxy[0])));
-    // glEnableVertexAttribArray(p_velocity_location);
+
+    // Trailmap
+    GLuint trailmap;
+    glGenTextures(1, &trailmap);
+    glBindTexture(GL_TEXTURE_2D, trailmap);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    /* Same internal format as compute shader input.
-     * data=NULL to just allocate the memory but not set it to anything. */
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
-    /* Bind to image unit, to allow writting to it from the compute shader. */
-    glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+    glBindImageTexture(0, trailmap, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 
+
+    // TrailMap Blurred
+    GLuint trailmapBlurred;
+    glGenTextures(1, &trailmapBlurred);
+    glBindTexture(GL_TEXTURE_2D, trailmapBlurred);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glBindImageTexture(0, trailmapBlurred, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+    // Particles Buffer
     constexpr int numParticles = 1000;
     ParticlesEngine particles(numParticles, 100, vec2{500, 500});
     GLuint ssbo;
@@ -277,13 +283,22 @@ int main(void) {
     // particule_buffer_location = glGetAttribLocation(program, "particule_buffer");
     // glUniform1fv(particule_buffer_location, sizeof(particles.particles_xy_vxy[0]), particles.particles_xy_vxy.data());
 
+    // glActiveTexture(GL_TEXTURE0);
+    // glEnable(GL_TEXTURE_2D);
+    // glBindTexture(GL_TEXTURE_2D, trailmap);
+
+    // glActiveTexture(GL_TEXTURE1);
+    // glBindTexture(GL_TEXTURE_2D, trailmapBlurred);
+
     /* Main loop. */
     while (!glfwWindowShouldClose(window)) {
         /* Compute. */
         glUseProgram(compute_program);
-        /* Dimensions given here appear in gl_GlobalInvocationID.xy in the shader. */
-        // glDispatchCompute((GLuint)width, (GLuint)height, 1);
         glDispatchCompute(static_cast<GLuint>(numParticles), 1, 1);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+        glUseProgram(blur_compute_program);
+        glDispatchCompute(static_cast<GLuint>(width), static_cast<GLuint>(height), 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
         /* Global state. */
@@ -304,9 +319,10 @@ int main(void) {
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
-    glDeleteTextures(1, &texture);
+    glDeleteTextures(1, &trailmap);
     glDeleteProgram(program);
     glDeleteProgram(compute_program);
+    glDeleteProgram(blur_compute_program);
     glfwTerminate();
     return EXIT_SUCCESS;
 }
