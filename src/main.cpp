@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <random>
 #include <chrono>
 
 std::string readFile(const char *filePath) {
@@ -89,6 +90,7 @@ GLuint common_get_compute_program(const char *source) {
 
     GLint log_length, success;
     GLuint program, shader;
+    std::string log;
 
     /* Shader. */
     shader = glCreateShader(GL_COMPUTE_SHADER);
@@ -96,6 +98,12 @@ GLuint common_get_compute_program(const char *source) {
     glCompileShader(shader);
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+    if (log_length > 0) {
+      log.resize(log_length);
+      glGetShaderInfoLog(shader, log_length, NULL, log.data());
+      // printf("compute shader:\n\n%s\n", log);
+      spdlog::error("compute shader log : \n{}", log);
+    }
     if (!success) {
         printf("error: compute shader compile\n");
         exit(EXIT_FAILURE);
@@ -125,15 +133,37 @@ static const GLfloat vertices_xy_uv[] = {
      1.0, -1.0, 1.0, 0.0,
     -1.0, -1.0, 1.0, 1.0,
 };
-static const std::vector<GLfloat> particles_xy_vxy = {
-     1.0,  0.5, 0.1, 0.1,
-     0.7,  0.5, 0.1, -0.1,
-     0.5, -0.5, 0.1, 0.1,
-     0.2, -0.5, 0.1, -0.1,
-};
+// static const std::vector<GLfloat> particles_xy_vxy = {
+//      1.0,  0.5, 0.1, 0.1,
+//      0.7,  0.5, 0.1, -0.1,
+//      0.5, -0.5, 0.1, 0.1,
+//      0.2, -0.5, 0.1, -0.1,
+// };
 static const GLuint indices[] = {
     0, 1, 2,
     0, 2, 3,
+};
+
+struct ParticlesEngine {
+  ParticlesEngine(size_t num, float radius, vec2 center) : gen(rd()) {
+
+    std::uniform_real_distribution<> dist(-radius, radius);
+    while (particles_xy_vxy.size() < num * 4) {
+      const float x = dist(gen);
+      const float y = dist(gen);
+      if (x * x + y * y < radius * radius) {
+        particles_xy_vxy.push_back(x + center[0]);
+        particles_xy_vxy.push_back(y + center[1]);
+        particles_xy_vxy.push_back(y);
+        particles_xy_vxy.push_back(-x);
+      }
+    }
+    spdlog::info("number of particules generated : {}", particles_xy_vxy.size());
+  }
+  std::random_device rd;  // Will be used to obtain a seed for the random number engine
+  std::mt19937 gen; // Standard mersenne_twister_engine seeded with rd()
+
+  std::vector<GLfloat> particles_xy_vxy;
 };
 
 int main(void) {
@@ -227,16 +257,19 @@ int main(void) {
     /* Bind to image unit, to allow writting to it from the compute shader. */
     glBindImageTexture(0, texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
+    constexpr int numParticles = 1000;
+    ParticlesEngine particles(numParticles, 100, vec2{500, 500});
     GLuint ssbo;
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(particles_xy_vxy), particles_xy_vxy.data(), GL_STATIC_DRAW);
+    // glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GLfloat) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GLfloat) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
-    GLuint particule_buffer_location;
-    particule_buffer_location = glGetAttribLocation(program, "particule_buffer");
-    glUniform1fv(particule_buffer_location, sizeof(particles_xy_vxy[0]), particles_xy_vxy.data());
+    // GLuint particule_buffer_location;
+    // particule_buffer_location = glGetAttribLocation(program, "particule_buffer");
+    // glUniform1fv(particule_buffer_location, sizeof(particles.particles_xy_vxy[0]), particles.particles_xy_vxy.data());
 
     /* Main loop. */
     while (!glfwWindowShouldClose(window)) {
@@ -244,7 +277,7 @@ int main(void) {
         glUseProgram(compute_program);
         /* Dimensions given here appear in gl_GlobalInvocationID.xy in the shader. */
         // glDispatchCompute((GLuint)width, (GLuint)height, 1);
-        glDispatchCompute((GLuint)5, (GLuint)1, 1);
+        glDispatchCompute(static_cast<GLuint>(numParticles), 1, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
         /* Global state. */
