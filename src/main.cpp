@@ -38,7 +38,7 @@ std::string readFile(const char *filePath) {
   return content;
 }
 
-/* Build and compile shader program, return its ID. */
+// Build and compile shader program, return its ID.
 GLuint common_get_shader_program(
     const char *vertex_shader_source,
     const char *fragment_shader_source
@@ -46,7 +46,7 @@ GLuint common_get_shader_program(
     GLint log_length, success;
     GLuint fragment_shader, program, vertex_shader;
 
-    /* Vertex shader */
+    // Vertex shader
     vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
@@ -57,7 +57,7 @@ GLuint common_get_shader_program(
         exit(EXIT_FAILURE);
     }
 
-    /* Fragment shader */
+    // Fragment shader
     fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
     glCompileShader(fragment_shader);
@@ -68,7 +68,7 @@ GLuint common_get_shader_program(
         exit(EXIT_FAILURE);
     }
 
-    /* Link shaders */
+    // Link shaders
     program = glCreateProgram();
     glAttachShader(program, vertex_shader);
     glAttachShader(program, fragment_shader);
@@ -80,7 +80,7 @@ GLuint common_get_shader_program(
         exit(EXIT_FAILURE);
     }
 
-    /* Cleanup. */
+    // Cleanup.
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
     return program;
@@ -92,7 +92,7 @@ GLuint common_get_compute_program(const char *source) {
     GLuint program, shader;
     std::string log;
 
-    /* Shader. */
+    // Shader.
     shader = glCreateShader(GL_COMPUTE_SHADER);
     glShaderSource(shader, 1, &source, NULL);
     glCompileShader(shader);
@@ -109,7 +109,7 @@ GLuint common_get_compute_program(const char *source) {
         exit(EXIT_FAILURE);
     }
 
-    /* Program. */
+    // Program.
     program = glCreateProgram();
     glAttachShader(program, shader);
     glLinkProgram(program);
@@ -125,20 +125,12 @@ GLuint common_get_compute_program(const char *source) {
     return program;
 }
 
-static const GLuint WIDTH = 2000;
-static const GLuint HEIGHT = 1000;
 static const GLfloat vertices_xy_uv[] = {
     -1.0,  1.0, 0.0, 1.0,
      1.0,  1.0, 0.0, 0.0,
      1.0, -1.0, 1.0, 0.0,
     -1.0, -1.0, 1.0, 1.0,
 };
-// static const std::vector<GLfloat> particles_xy_vxy = {
-//      1.0,  0.5, 0.1, 0.1,
-//      0.7,  0.5, 0.1, -0.1,
-//      0.5, -0.5, 0.1, 0.1,
-//      0.2, -0.5, 0.1, -0.1,
-// };
 static const GLuint indices[] = {
     0, 1, 2,
     0, 2, 3,
@@ -166,78 +158,49 @@ struct ParticlesEngine {
     }
     spdlog::info("number of particules generated : {}", particles_xy_vxy.size());
   }
-  std::random_device rd;  // Will be used to obtain a seed for the random number engine
-  std::mt19937 gen; // Standard mersenne_twister_engine seeded with rd()
+  std::random_device rd;
+  std::mt19937 gen;
 
   std::vector<Particle> particles_xy_vxy;
 };
 
 int main(void) {
-    GLFWwindow *window;
-    GLint
-        coord2d_location,
-        textureSampler_location,
-        vertexUv_location,
-        p_coord2d_location,
-        p_velocity_location
-    ;
-    GLuint
-        ebo,
-        program,
-        vbo,
-        vao
-    ;
-    unsigned int
-        width = WIDTH,
-        height = HEIGHT
-    ;
+    const uint32_t width = 2000;
+    const uint32_t height = 1000;
 
-    /* Window. */
+    // Window.
     glfwInit();
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-    window = glfwCreateWindow(width, height, __FILE__, NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(width, height, __FILE__, NULL, NULL);
     glfwMakeContextCurrent(window);
     gladLoadGL();
 
-    /* Shader. */
+    // Display Shader
     auto vertex_shader_text = readFile("shaders/slime.vert");
     const char* vertex_shader_source = vertex_shader_text.c_str();
     auto fragment_shader_text = readFile("shaders/slime.frag");
     const char* fragment_shader_source = fragment_shader_text.c_str();
-    program = common_get_shader_program(vertex_shader_source, fragment_shader_source);
-    coord2d_location = glGetAttribLocation(program, "coord2d");
-    vertexUv_location = glGetAttribLocation(program, "vertexUv");
-    textureSampler_location = glGetUniformLocation(program, "textureSampler");
+    GLuint program = common_get_shader_program(vertex_shader_source, fragment_shader_source);
+    GLuint coord2d_location = glGetAttribLocation(program, "coord2d");
+    GLuint vertexUv_location = glGetAttribLocation(program, "vertexUv");
+    GLuint textureSampler_location = glGetUniformLocation(program, "textureSampler");
 
-    // Particle shader
-    auto compute_shader_text = readFile("shaders/slime.compute");
-    const char* compute_shader_source = compute_shader_text.c_str();
-    GLuint compute_program = common_get_compute_program(compute_shader_source);
-
-    // Blur shader
-    auto blur_compute_shader_text = readFile("shaders/blur.compute");
-    const char* blur_compute_shader_source = blur_compute_shader_text.c_str();
-    GLuint blur_compute_program = common_get_compute_program(blur_compute_shader_source);
-
-    /* vbo */
+    // vbo
+    GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_xy_uv), vertices_xy_uv, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // /* pab */
-    // glGenBuffers(1, &pab);
-    // glBindBuffer(GL_ARRAY_BUFFER, pab);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(particles_xy_vxy), particles_xy_vxy, GL_STATIC_DRAW);
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    /* ebo */
+    // ebo
+    GLuint ebo;
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    /* vao */
+    // vao
+    GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -247,6 +210,16 @@ int main(void) {
     glVertexAttribPointer(vertexUv_location, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(vertices_xy_uv[0]), (GLvoid*)(2 * sizeof(vertices_xy_uv[0])));
     glEnableVertexAttribArray(vertexUv_location);
     glBindVertexArray(0);
+
+    // Particule to trailmap shader
+    auto compute_shader_text = readFile("shaders/slime.compute");
+    const char* compute_shader_source = compute_shader_text.c_str();
+    GLuint compute_program = common_get_compute_program(compute_shader_source);
+
+    // Blur shader
+    auto blur_compute_shader_text = readFile("shaders/blur.compute");
+    const char* blur_compute_shader_source = blur_compute_shader_text.c_str();
+    GLuint blur_compute_program = common_get_compute_program(blur_compute_shader_source);
 
 
     // Trailmap
@@ -270,29 +243,18 @@ int main(void) {
 
     // Particles Buffer
     constexpr int numParticles = 1000;
-    ParticlesEngine particles(numParticles, 100, vec2{500, 500});
+    ParticlesEngine particles(numParticles, 100, vec2{width/2.f, height/2.f});
     GLuint ssbo;
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    // glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GLfloat) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(ParticlesEngine::Particle) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
-    // GLuint particule_buffer_location;
-    // particule_buffer_location = glGetAttribLocation(program, "particule_buffer");
-    // glUniform1fv(particule_buffer_location, sizeof(particles.particles_xy_vxy[0]), particles.particles_xy_vxy.data());
 
-    // glActiveTexture(GL_TEXTURE0);
-    // glEnable(GL_TEXTURE_2D);
-    // glBindTexture(GL_TEXTURE_2D, trailmap);
-
-    // glActiveTexture(GL_TEXTURE1);
-    // glBindTexture(GL_TEXTURE_2D, trailmapBlurred);
-
-    /* Main loop. */
+    // Main loop
     while (!glfwWindowShouldClose(window)) {
-        /* Compute. */
+        // Compute
         glUseProgram(compute_program);
         glDispatchCompute(static_cast<GLuint>(numParticles), 1, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -301,7 +263,9 @@ int main(void) {
         glDispatchCompute(static_cast<GLuint>(width), static_cast<GLuint>(height), 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-        /* Global state. */
+        // the display show trailmap and trailmapBlurrer blended but I only want trailmapBlurred
+
+        // Global state
         glViewport(0, 0, width, height);
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -315,11 +279,14 @@ int main(void) {
         glfwPollEvents();
     }
 
-    /* Cleanup. */
+    // Cleanup
     glDeleteBuffers(1, &ebo);
     glDeleteBuffers(1, &vbo);
     glDeleteVertexArrays(1, &vao);
     glDeleteTextures(1, &trailmap);
+    glDeleteTextures(1, &trailmapBlurred);
+    glDeleteBuffers(1, &ssbo);
+
     glDeleteProgram(program);
     glDeleteProgram(compute_program);
     glDeleteProgram(blur_compute_program);

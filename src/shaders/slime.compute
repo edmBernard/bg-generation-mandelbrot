@@ -18,29 +18,10 @@ layout(std430, binding = 3) buffer particlesBuffer
 
 void main () {
     const uint index = gl_GlobalInvocationID.x;
-    // particlesSSBO[index] += particlesSSBO[index+2] / 100;
-    // particlesSSBO[index+1] += particlesSSBO[index+3] / 100;
     particlesSSBO[index].x += particlesSSBO[index].vx / 100;
     particlesSSBO[index].y += particlesSSBO[index].vy / 100;
-
-    // particlesSSBO[index] += gl_GlobalInvocationID.x;
-    // particlesSSBO[index+1] += gl_GlobalInvocationID.x;
-    // Particle p = particlesSSBO[index];
-    // p.vx += 0.1;
-    // p.vy += 0.1;
-    // particlesSSBO[gl_GlobalInvocationID.x].vx += 0.1;
-    // particlesSSBO[gl_GlobalInvocationID.x].vy += 0.1;
 
     ivec2 pos = ivec2(particlesSSBO[index].x, particlesSSBO[index].y);
     vec4 pixel = vec4(1.0, 0.0, 0.0, 1.0);
     imageStore(trailmap, pos, pixel);
-
-    // for (int i = 0; i < 100; ++i) {
-    //   for (int j = 0; j < 100; ++j) {
-    //     ivec2 gid = ivec2(i +  100 * (index+1) + 100 * particlesSSBO[index+2], j * (gl_GlobalInvocationID.y+1) + 100 * particlesSSBO[index+3]); //  particles[indexy].xy;
-    //     ivec2 dims = imageSize(trailmap);
-    //     vec4 pixel = vec4(particlesSSBO[index].x, 0.0, 1.0, 1.0);
-    //     imageStore(trailmap, gid, pixel);
-    //   }
-    // }
 }

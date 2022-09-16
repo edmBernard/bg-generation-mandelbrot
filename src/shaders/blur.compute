@@ -8,32 +8,17 @@ layout(rgba32f, binding = 0) uniform image2D trailmapBlurred;
 void main(void) {
   ivec2 id = ivec2(gl_GlobalInvocationID.xy);
   ivec2 size = imageSize(trailmap);
+
   if (id.x >= size.x || id.y >= size.y) {
     return;
   }
+
   if (id.y >= 500)
     return;
 
-  // 0.9544
-  int kernel = int(ceil(2.0 * 4.0));
-
-  // vec4 pixel = vec4(0.0);
-  // float coef = 0.0;
-  // for (int dx = -kernel; dx <= kernel; dx++) {
-  //   for (int dy = -kernel; dy <= kernel; dy++) {
-  //     int x = id.x + dx;
-  //     int y = id.y + dy;
-  //     if (x < 0 || x >= size.x ||
-  //         y < 0 || y >= size.y) {
-  //       continue;
-  //     }
-  //     float c = exp(-float(dx * dx + dy * dy) / (2.0 * uSigma * uSigma + 1e-5));
-  //     pixel += (imageLoad(tex1, ivec2(x, y)) * c);
-  //     coef += c;
-  //   }
-  // }
+  // this shader should apply blur but I have issue to call it and get the correct output
+  // so keep it simple to debug
+  // it inverse red and green channel to see the impact of previous step
   vec4 pixel = imageLoad(trailmap, ivec2(id.x, id.y));
-  // vec4 pixel = texture(tex1, ivec2(id.x, id.y));
-  // vec4 pixel = texture(tex1, ivec2(id.x / size.x, id.y / size.y));
   imageStore(trailmapBlurred, id, vec4(pixel.y, pixel.x, pixel.z, 1.0));
 }
