@@ -20,8 +20,8 @@ void main () {
     const uint index = gl_GlobalInvocationID.x;
     // particlesSSBO[index] += particlesSSBO[index+2] / 100;
     // particlesSSBO[index+1] += particlesSSBO[index+3] / 100;
-    particlesSSBO[index].x += particlesSSBO[index].vx / 100;
-    particlesSSBO[index].y += particlesSSBO[index].vy / 100;
+    particlesSSBO[index].x += particlesSSBO[index].vx / 1000;
+    particlesSSBO[index].y += particlesSSBO[index].vy / 1000;
 
     // particlesSSBO[index] += gl_GlobalInvocationID.x;
     // particlesSSBO[index+1] += gl_GlobalInvocationID.x;

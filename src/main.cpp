@@ -145,17 +145,23 @@ static const GLuint indices[] = {
 };
 
 struct ParticlesEngine {
+
+  struct Particle
+  {
+    float x;
+    float y;
+    float vx;
+    float vy;
+  };
+
   ParticlesEngine(size_t num, float radius, vec2 center) : gen(rd()) {
 
     std::uniform_real_distribution<> dist(-radius, radius);
-    while (particles_xy_vxy.size() < num * 4) {
+    while (particles_xy_vxy.size() < num) {
       const float x = dist(gen);
       const float y = dist(gen);
       if (x * x + y * y < radius * radius) {
-        particles_xy_vxy.push_back(x + center[0]);
-        particles_xy_vxy.push_back(y + center[1]);
-        particles_xy_vxy.push_back(y);
-        particles_xy_vxy.push_back(-x);
+        particles_xy_vxy.push_back(Particle{x + center[0], y + center[1], y, -x});
       }
     }
     spdlog::info("number of particules generated : {}", particles_xy_vxy.size());
@@ -163,7 +169,7 @@ struct ParticlesEngine {
   std::random_device rd;  // Will be used to obtain a seed for the random number engine
   std::mt19937 gen; // Standard mersenne_twister_engine seeded with rd()
 
-  std::vector<GLfloat> particles_xy_vxy;
+  std::vector<Particle> particles_xy_vxy;
 };
 
 int main(void) {
@@ -263,7 +269,7 @@ int main(void) {
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
     // glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GLfloat) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GLfloat) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(ParticlesEngine::Particle) * particles.particles_xy_vxy.size(), particles.particles_xy_vxy.data(), GL_STATIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // unbind
 
