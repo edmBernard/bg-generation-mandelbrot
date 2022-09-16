@@ -1,5 +1,7 @@
 #version 460
 
+out vec4 fragColor;
+
 uniform vec2 resolution;
 uniform vec2 cursor;
 uniform float time;
@@ -35,17 +37,17 @@ vec3 hslToRgb(float h, float s, float l) {
 float mandelbrot(vec2 uv) {
 
   // mandelbrot
-  // vec2 c = 4.0 * uv - vec2(0.7, 0.0);
-  // c = c / pow(time, 4.0) - vec2(0.65, 0.45);
-  // vec2 z = vec2(0.0);
+  vec2 c = 4.0 * uv - vec2(0.7, 0.0);
+  c = c / pow(time, 4.0) - vec2(0.65, 0.45);
+  vec2 z = vec2(0.0);
 
   // julia fixed
   // vec2 c = vec2(-0.8, 0.156);
   // vec2 z = uv;
 
   // Julia on cursor position
-  vec2 c = (cursor  - 0.5 * resolution.xy) / resolution.y;
-  vec2 z = uv;
+  // vec2 c = (cursor  - 0.5 * resolution.xy) / resolution.y;
+  // vec2 z = uv;
 
   for (float i = 0.0; i < MAX_ITER; ++i) {
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
@@ -72,5 +74,5 @@ void main()
     // col = hslToRgb(m + 0.6, 0.5, 0.5);
     col = hslToRgb(0.6, 0.8, m);
   }
-  gl_FragColor = vec4(col, 1.0);
+  fragColor = vec4(col, 1.0);
 }
