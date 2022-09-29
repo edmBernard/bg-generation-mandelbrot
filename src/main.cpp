@@ -70,10 +70,10 @@ int main(int argc, char *argv[]) try {
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+  // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   GLFWwindow *window = glfwCreateWindow(3840, 2400, "MandelBrot Set", NULL, NULL);
   if (!window) {
@@ -84,7 +84,8 @@ int main(int argc, char *argv[]) try {
   glfwSetKeyCallback(window, key_callback);
   glfwMakeContextCurrent(window);
   gladLoadGL();
-  spdlog::info("OpenGL version supported by this platform ({}): \n", glGetString(GL_VERSION));
+  spdlog::info("Render: {}", glGetString(GL_RENDERER));
+  spdlog::info("OpenGL version: {}", glGetString(GL_VERSION));
   glfwSwapInterval(1);
 
   GLint log_length, success;
@@ -96,8 +97,7 @@ int main(int argc, char *argv[]) try {
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Build Vertex Shader
-  GLuint vertex_shader;
-  vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+  GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
   auto vertex_shader_text = readFile("shaders/vertex_shader.vert");
   const char *vertex_shader_data = vertex_shader_text.c_str();
   glShaderSource(vertex_shader, 1, &vertex_shader_data, NULL);
@@ -115,8 +115,7 @@ int main(int argc, char *argv[]) try {
   }
 
   // Build Fragment Shader
-  GLuint fragment_shader;
-  fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+  GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
   auto fragment_shader_text = readFile("shaders/fragment_shader.frag");
   const char *fragment_shader_data = fragment_shader_text.c_str();
   glShaderSource(fragment_shader, 1, &fragment_shader_data, NULL);
