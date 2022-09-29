@@ -1,8 +1,6 @@
-#version 460
+#version 410
 
-attribute vec2 vPos;
-
-in vec3 in_position;
+in vec2 vPos;
 
 void main() {
   // Don't change vertex position

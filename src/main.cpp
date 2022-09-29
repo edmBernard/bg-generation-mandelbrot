@@ -1,7 +1,6 @@
+#include <fmt/core.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
-#include <fmt/core.h>
-
 
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
@@ -12,26 +11,25 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include <string>
+#include <chrono>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <vector>
-#include <chrono>
-
 
 std::string readFile(const char *filePath) {
   std::string content;
   std::ifstream fileStream(filePath, std::ios::in);
 
-  if(!fileStream.is_open()) {
+  if (!fileStream.is_open()) {
     spdlog::error("Could not read file {}. File does not exist.", filePath);
     throw std::runtime_error("File not found");
   }
 
   std::string line = "";
-  while(!fileStream.eof()) {
-      std::getline(fileStream, line);
-      content.append(line + "\n");
+  while (!fileStream.eof()) {
+    std::getline(fileStream, line);
+    content.append(line + "\n");
   }
 
   fileStream.close();
@@ -39,10 +37,10 @@ std::string readFile(const char *filePath) {
 }
 
 static const struct { float x, y; } vertices[4] = {
-  {-1.f, -1.f},
-  {-1.f,  1.f},
-  { 1.f,  1.f},
-  { 1.f, -1.f}};
+    {-1.f, -1.f},
+    {-1.f, 1.f},
+    {1.f, 1.f},
+    {1.f, -1.f}};
 
 static void error_callback(int error, const char *description) {
   spdlog::error("Error in glfw {}. File does not exist.", description);
@@ -72,8 +70,10 @@ int main(int argc, char *argv[]) try {
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   GLFWwindow *window = glfwCreateWindow(3840, 2400, "MandelBrot Set", NULL, NULL);
   if (!window) {
@@ -82,36 +82,73 @@ int main(int argc, char *argv[]) try {
   }
 
   glfwSetKeyCallback(window, key_callback);
-
   glfwMakeContextCurrent(window);
   gladLoadGL();
+  spdlog::info("OpenGL version supported by this platform ({}): \n", glGetString(GL_VERSION));
   glfwSwapInterval(1);
 
-  // TODO: OpenGL error checks
+  GLint log_length, success;
+  std::string log;
 
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+  // Build Vertex Shader
   GLuint vertex_shader;
   vertex_shader = glCreateShader(GL_VERTEX_SHADER);
   auto vertex_shader_text = readFile("shaders/vertex_shader.vert");
-  const char* vertex_shader_data = vertex_shader_text.c_str();
+  const char *vertex_shader_data = vertex_shader_text.c_str();
   glShaderSource(vertex_shader, 1, &vertex_shader_data, NULL);
   glCompileShader(vertex_shader);
+  glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
+  glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
+  if (log_length > 0) {
+    log.resize(log_length);
+    glGetShaderInfoLog(vertex_shader, log_length, NULL, log.data());
+    spdlog::error("Vertex shader log : \n{}\n", log);
+  }
+  if (!success) {
+    spdlog::error("Vertex shader compile failed\n");
+    return EXIT_FAILURE;
+  }
 
+  // Build Fragment Shader
   GLuint fragment_shader;
   fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
   auto fragment_shader_text = readFile("shaders/fragment_shader.frag");
-  const char* fragment_shader_data = fragment_shader_text.c_str();
+  const char *fragment_shader_data = fragment_shader_text.c_str();
   glShaderSource(fragment_shader, 1, &fragment_shader_data, NULL);
   glCompileShader(fragment_shader);
+  glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
+  glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
+  if (log_length > 0) {
+    log.resize(log_length);
+    glGetShaderInfoLog(fragment_shader, log_length, NULL, log.data());
+    spdlog::error("Compute shader log : \n{}\n", log);
+  }
+  if (!success) {
+    spdlog::error("Compute shader compile failed\n");
+    return EXIT_FAILURE;
+  }
 
+  // Build Program
   GLuint program = glCreateProgram();
   glAttachShader(program, vertex_shader);
   glAttachShader(program, fragment_shader);
   glLinkProgram(program);
+  glGetProgramiv(program, GL_LINK_STATUS, &success);
+  glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
+  if (log_length > 0) {
+    log.resize(log_length);
+    glGetProgramInfoLog(program, log_length, NULL, log.data());
+    spdlog::error("Program link log : \n{}\n", log);
+  }
+  if (!success) {
+    spdlog::error("Program link failed\n");
+    return EXIT_FAILURE;
+  }
 
   GLint vpos_location = glGetAttribLocation(program, "vPos");
   glEnableVertexAttribArray(vpos_location);

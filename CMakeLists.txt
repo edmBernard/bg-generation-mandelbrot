@@ -50,13 +50,17 @@ SET(SOURCES
 # Make configuration ******************************************************************************
 add_executable(bg-generation-mandelbrot ${SOURCES})
 target_link_libraries(bg-generation-mandelbrot PRIVATE fmt::fmt-header-only spdlog::spdlog_header_only cxxopts::cxxopts)
-target_link_libraries(bg-generation-mandelbrot PRIVATE glfw glad::glad)
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  target_link_libraries(bg-generation-mandelbrot PRIVATE glfw glad::glad)
+else()
+  target_link_libraries(bg-generation-mandelbrot PRIVATE glfw glad::glad -ldl)
+endif()
 
 file(GLOB SHADER_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/*)
 
 add_custom_target(
   copy_shaders
   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src/shaders ${CMAKE_BINARY_DIR}/shaders
-  DEPENDS SHADER_FILES
+  DEPENDS ${SHADER_FILES}
 )
 add_dependencies(bg-generation-mandelbrot copy_shaders)
