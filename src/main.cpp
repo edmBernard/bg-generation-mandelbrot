@@ -83,18 +83,16 @@ int main(int argc, char *argv[]) try {
 
   glfwSetKeyCallback(window, key_callback);
   glfwMakeContextCurrent(window);
-  gladLoadGL();
+  if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+    spdlog::error("Failed to initialize OpenGL context");
+    return EXIT_FAILURE;
+  }
   spdlog::info("Render: {}", glGetString(GL_RENDERER));
   spdlog::info("OpenGL version: {}", glGetString(GL_VERSION));
   glfwSwapInterval(1);
 
   GLint log_length, success;
   std::string log;
-
-  GLuint vertex_buffer;
-  glGenBuffers(1, &vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
   // Build Vertex Shader
   GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
@@ -149,6 +147,10 @@ int main(int argc, char *argv[]) try {
     return EXIT_FAILURE;
   }
 
+  GLuint vertex_buffer;
+  glGenBuffers(1, &vertex_buffer);
+  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
   GLint vpos_location = glGetAttribLocation(program, "vPos");
   glEnableVertexAttribArray(vpos_location);
   glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), (void *)0);
