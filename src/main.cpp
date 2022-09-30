@@ -190,7 +190,6 @@ int main(int argc, char *argv[]) try {
     glUniform1f(time_location, static_cast<float>(glfwGetTime()));
 
     glUseProgram(shader_program);
-    glBindVertexArray(vpos_location);
 
     // Bind vertex array & draw
 		glBindVertexArray(vpos_location);
