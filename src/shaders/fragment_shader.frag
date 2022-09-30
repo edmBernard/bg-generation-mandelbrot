@@ -42,12 +42,12 @@ float mandelbrot(vec2 uv) {
   // vec2 z = vec2(0.0);
 
   // julia fixed
-  vec2 c = vec2(-0.8, 0.156);
-  vec2 z = uv;
+  // vec2 c = vec2(-0.8, 0.156);
+  // vec2 z = uv;
 
   // Julia on cursor position
-  // vec2 c = (cursor  - 0.5 * resolution.xy) / resolution.y;
-  // vec2 z = uv;
+  vec2 c = (cursor  - 0.5 * resolution.xy) / resolution.y;
+  vec2 z = uv;
 
   for (float i = 0.0; i < MAX_ITER; ++i) {
     z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;

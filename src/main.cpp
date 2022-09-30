@@ -39,8 +39,8 @@ std::string readFile(const char *filePath) {
 static const struct { float x, y; } vertices[4] = {
     {-1.f, -1.f},
     {-1.f, 1.f},
-    {1.f, 1.f},
-    {1.f, -1.f}};
+    {1.f, -1.f},
+    {1.f, 1.f}};
 
 static void error_callback(int error, const char *description) {
   spdlog::error("Error in glfw {}. File does not exist.", description);
@@ -67,16 +67,19 @@ int main(int argc, char *argv[]) try {
 
   glfwSetErrorCallback(error_callback);
 
-  if (!glfwInit())
-    exit(EXIT_FAILURE);
+  if (!glfwInit()) {
+    spdlog::error("Could not start GLFW3");
+    return EXIT_FAILURE;
+  }
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-  // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
   GLFWwindow *window = glfwCreateWindow(3840, 2400, "MandelBrot Set", NULL, NULL);
   if (!window) {
+    spdlog::error("Fail to create windows");
     glfwTerminate();
     return EXIT_FAILURE;
   }
@@ -87,6 +90,7 @@ int main(int argc, char *argv[]) try {
     spdlog::error("Failed to initialize OpenGL context");
     return EXIT_FAILURE;
   }
+
   spdlog::info("Render: {}", glGetString(GL_RENDERER));
   spdlog::info("OpenGL version: {}", glGetString(GL_VERSION));
   glfwSwapInterval(1);
@@ -123,23 +127,21 @@ int main(int argc, char *argv[]) try {
   if (log_length > 0) {
     log.resize(log_length);
     glGetShaderInfoLog(fragment_shader, log_length, NULL, log.data());
-    spdlog::error("Compute shader log : \n{}\n", log);
+    spdlog::error("Fragment shader log : \n{}\n", log);
   }
   if (!success) {
-    spdlog::error("Compute shader compile failed\n");
+    spdlog::error("Fragment shader compile failed\n");
     return EXIT_FAILURE;
   }
-
   // Build Program
-  GLuint program = glCreateProgram();
-  glAttachShader(program, vertex_shader);
-  glAttachShader(program, fragment_shader);
-  glLinkProgram(program);
-  glGetProgramiv(program, GL_LINK_STATUS, &success);
-  glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_length);
+  GLuint shader_program = glCreateProgram();
+  glAttachShader(shader_program, fragment_shader);
+  glAttachShader(shader_program, vertex_shader);
+  glLinkProgram(shader_program);
+  glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &log_length);
   if (log_length > 0) {
     log.resize(log_length);
-    glGetProgramInfoLog(program, log_length, NULL, log.data());
+    glGetProgramInfoLog(shader_program, log_length, NULL, log.data());
     spdlog::error("Program link log : \n{}\n", log);
   }
   if (!success) {
@@ -147,25 +149,35 @@ int main(int argc, char *argv[]) try {
     return EXIT_FAILURE;
   }
 
+  glEnable(GL_DEPTH_TEST); // enable depth-testing
+  glDepthFunc(GL_LESS); // depth-testing interprets a smaller value as "closer"
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
+  GLuint vpos_location = glGetAttribLocation(shader_program, "vPos");
+  glGenVertexArrays(1, &vpos_location);
+
+  // Try to correclty bind buffer and array like in: https://github.com/g-truc/ogl-samples/blob/master/samples/gl-410-primitive-instanced.cpp
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-  GLint vpos_location = glGetAttribLocation(program, "vPos");
-  glEnableVertexAttribArray(vpos_location);
-  glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE, sizeof(vertices[0]), (void *)0);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  GLint resolution_location = glGetUniformLocation(program, "resolution");
-  GLint cursor_location = glGetUniformLocation(program, "cursor");
-  GLint time_location = glGetUniformLocation(program, "time");
+  glBindVertexArray(vpos_location);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+      glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindVertexArray(0);
 
-  while (!glfwWindowShouldClose(window)) {
+  GLint resolution_location = glGetUniformLocation(shader_program, "resolution");
+  GLint cursor_location = glGetUniformLocation(shader_program, "cursor");
+  GLint time_location = glGetUniformLocation(shader_program, "time");
 
+  while(!glfwWindowShouldClose(window)) {
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
-
     glViewport(0, 0, width, height);
-    glClear(GL_COLOR_BUFFER_BIT);
+    // wipe the drawing surface clear
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
@@ -177,15 +189,18 @@ int main(int argc, char *argv[]) try {
 
     glUniform1f(time_location, static_cast<float>(glfwGetTime()));
 
-    glUseProgram(program);
+    glUseProgram(shader_program);
+    glBindVertexArray(vpos_location);
 
-    glDrawArrays(GL_QUADS, 0, 4);
+    // Bind vertex array & draw
+		glBindVertexArray(vpos_location);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-    glfwSwapBuffers(window);
+    // update other events like input handling
     glfwPollEvents();
+    // put the stuff we've been drawing onto the display
+    glfwSwapBuffers(window);
   }
-
-  glfwDestroyWindow(window);
 
   glfwTerminate();
   return EXIT_SUCCESS;
