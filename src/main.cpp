@@ -17,6 +17,9 @@
 #include <string>
 #include <vector>
 
+#include "mandelbrot.hpp"
+
+
 std::string readFile(const char *filePath) {
   std::string content;
   std::ifstream fileStream(filePath, std::ios::in);
@@ -36,7 +39,9 @@ std::string readFile(const char *filePath) {
   return content;
 }
 
-static const struct { float x, y; } vertices[4] = {
+static const struct {
+  float x, y;
+} vertices[4] = {
     {-1.f, -1.f},
     {-1.f, 1.f},
     {1.f, -1.f},
@@ -54,10 +59,25 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
   if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
-    std::vector<float> buffer(width * height * 3);
+
+    // Grab frame from GPU
+    std::vector<uint8_t> buffer(width * height * 3);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer.data());
-    std::string filename = fmt::format("mandelbrot_{}.png", std::chrono::system_clock::now().time_since_epoch().count());
+    std::string filename = fmt::format("mandelbrot_gpu_{}.png", std::chrono::system_clock::now().time_since_epoch().count());
     stbi_write_png(filename.c_str(), width, height, 3, buffer.data(), width * 3);
+
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    // Compute on CPU
+    const eb::vec2 cursor{static_cast<float>(xpos), static_cast<float>(ypos)};
+    eb::vec2 c = (cursor - 0.5f * eb::vec2{static_cast<float>(width), static_cast<float>(height)}) / static_cast<float>(height);
+    const int widthExport = 2560 * 2;
+    const int heightExport = 1600 * 2;
+    const std::vector<uint8_t> cpu_buffer = eb::mandelbrot(c, widthExport, heightExport);
+
+    std::string filename_cpu = fmt::format("mandelbrot_cpu_{}.png", std::chrono::system_clock::now().time_since_epoch().count());
+    stbi_write_png(filename_cpu.c_str(), widthExport, heightExport, 3, cpu_buffer.data(), widthExport * 3);
   }
 }
 
@@ -77,7 +97,7 @@ int main(int argc, char *argv[]) try {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-  GLFWwindow *window = glfwCreateWindow(3840, 2400, "MandelBrot Set", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(4000, 4000, "MandelBrot Set", nullptr, nullptr);
   if (!window) {
     spdlog::error("Fail to create windows");
     glfwTerminate();
@@ -86,7 +106,7 @@ int main(int argc, char *argv[]) try {
 
   glfwSetKeyCallback(window, key_callback);
   glfwMakeContextCurrent(window);
-  if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+  if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
     spdlog::error("Failed to initialize OpenGL context");
     return EXIT_FAILURE;
   }
@@ -100,15 +120,15 @@ int main(int argc, char *argv[]) try {
 
   // Build Vertex Shader
   GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-  auto vertex_shader_text = readFile("shaders/vertex_shader.vert");
+  auto vertex_shader_text = readFile("src/shaders/vertex_shader.vert");
   const char *vertex_shader_data = vertex_shader_text.c_str();
-  glShaderSource(vertex_shader, 1, &vertex_shader_data, NULL);
+  glShaderSource(vertex_shader, 1, &vertex_shader_data, nullptr);
   glCompileShader(vertex_shader);
   glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
   glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
   if (log_length > 0) {
     log.resize(log_length);
-    glGetShaderInfoLog(vertex_shader, log_length, NULL, log.data());
+    glGetShaderInfoLog(vertex_shader, log_length, nullptr, log.data());
     spdlog::error("Vertex shader log : \n{}\n", log);
   }
   if (!success) {
@@ -118,15 +138,15 @@ int main(int argc, char *argv[]) try {
 
   // Build Fragment Shader
   GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  auto fragment_shader_text = readFile("shaders/fragment_shader.frag");
+  auto fragment_shader_text = readFile("src/shaders/fragment_shader.frag");
   const char *fragment_shader_data = fragment_shader_text.c_str();
-  glShaderSource(fragment_shader, 1, &fragment_shader_data, NULL);
+  glShaderSource(fragment_shader, 1, &fragment_shader_data, nullptr);
   glCompileShader(fragment_shader);
   glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
   glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
   if (log_length > 0) {
     log.resize(log_length);
-    glGetShaderInfoLog(fragment_shader, log_length, NULL, log.data());
+    glGetShaderInfoLog(fragment_shader, log_length, nullptr, log.data());
     spdlog::error("Fragment shader log : \n{}\n", log);
   }
   if (!success) {
@@ -141,7 +161,7 @@ int main(int argc, char *argv[]) try {
   glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &log_length);
   if (log_length > 0) {
     log.resize(log_length);
-    glGetProgramInfoLog(shader_program, log_length, NULL, log.data());
+    glGetProgramInfoLog(shader_program, log_length, nullptr, log.data());
     spdlog::error("Program link log : \n{}\n", log);
   }
   if (!success) {
@@ -149,8 +169,6 @@ int main(int argc, char *argv[]) try {
     return EXIT_FAILURE;
   }
 
-  glEnable(GL_DEPTH_TEST); // enable depth-testing
-  glDepthFunc(GL_LESS); // depth-testing interprets a smaller value as "closer"
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
   GLuint vpos_location = glGetAttribLocation(shader_program, "vPos");
@@ -158,26 +176,26 @@ int main(int argc, char *argv[]) try {
 
   // Try to correclty bind buffer and array like in: https://github.com/g-truc/ogl-samples/blob/master/samples/gl-410-primitive-instanced.cpp
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   glBindVertexArray(vpos_location);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-      glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+  glEnableVertexAttribArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
 
   GLint resolution_location = glGetUniformLocation(shader_program, "resolution");
   GLint cursor_location = glGetUniformLocation(shader_program, "cursor");
   GLint time_location = glGetUniformLocation(shader_program, "time");
 
-  while(!glfwWindowShouldClose(window)) {
+  while (!glfwWindowShouldClose(window)) {
     int width, height;
     glfwGetFramebufferSize(window, &width, &height);
     glViewport(0, 0, width, height);
     // wipe the drawing surface clear
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
@@ -192,7 +210,7 @@ int main(int argc, char *argv[]) try {
     glUseProgram(shader_program);
 
     // Bind vertex array & draw
-		glBindVertexArray(vpos_location);
+    glBindVertexArray(vpos_location);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
     // update other events like input handling
