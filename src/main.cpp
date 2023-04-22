@@ -45,16 +45,23 @@ GLuint common_get_shader_program(
 ) {
     GLint log_length, success;
     GLuint fragment_shader, program, vertex_shader;
+    std::string log;
 
     // Vertex shader
     vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
     glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-    glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
-    if (!success) {
-        printf("vertex shader compile error\n");
-        exit(EXIT_FAILURE);
+    if (success != GL_TRUE) {
+      spdlog::error("Vertex shader compile failed");
+
+      glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
+      if (log_length > 0) {
+        log.resize(log_length);
+        glGetShaderInfoLog(vertex_shader, log_length, nullptr, log.data());
+        spdlog::error("Vertex shader log : \n{}", log);
+      }
+      exit(EXIT_FAILURE);
     }
 
     // Fragment shader
@@ -62,10 +69,16 @@ GLuint common_get_shader_program(
     glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
     glCompileShader(fragment_shader);
     glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-    glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
-    if (!success) {
-        printf("fragment shader compile error\n");
-        exit(EXIT_FAILURE);
+    if (success != GL_TRUE) {
+      spdlog::error("Fragment shader compile failed");
+
+      glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
+      if (log_length > 0) {
+        log.resize(log_length);
+        glGetShaderInfoLog(fragment_shader, log_length, nullptr, log.data());
+        spdlog::error("Fragment shader log : \n{}", log);
+      }
+      exit(EXIT_FAILURE);
     }
 
     // Link shaders
@@ -164,21 +177,51 @@ struct ParticlesEngine {
   std::vector<Particle> particles_xy_vxy;
 };
 
+static void error_callback(int error, const char *description) {
+  spdlog::error("Error in glfw {}. File does not exist.", description);
+  throw std::runtime_error("Error in glfw");
+}
+
 int main(void) {
-    const uint32_t width = 2000;
-    const uint32_t height = 1000;
+    spdlog::cfg::load_env_levels();
+
+    glfwSetErrorCallback(error_callback);
+
+    if (!glfwInit()) {
+      spdlog::error("Could not start GLFW3");
+      return EXIT_FAILURE;
+    }
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     // Window.
-    glfwInit();
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    const uint32_t width = 2000;
+    const uint32_t height = 1000;
     GLFWwindow* window = glfwCreateWindow(width, height, __FILE__, NULL, NULL);
+    if (!window) {
+      spdlog::error("Fail to create windows");
+      glfwTerminate();
+      return EXIT_FAILURE;
+    }
+
     glfwMakeContextCurrent(window);
-    gladLoadGL();
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+      spdlog::error("Failed to initialize OpenGL context");
+      return EXIT_FAILURE;
+    }
+
+    spdlog::info("Render: {}", glGetString(GL_RENDERER));
+    spdlog::info("OpenGL version: {}", glGetString(GL_VERSION));
+    glfwSwapInterval(1);
 
     // Display Shader
-    auto vertex_shader_text = readFile("shaders/slime.vert");
+    auto vertex_shader_text = readFile("src/shaders/slime.vert");
     const char* vertex_shader_source = vertex_shader_text.c_str();
-    auto fragment_shader_text = readFile("shaders/slime.frag");
+    auto fragment_shader_text = readFile("src/shaders/slime.frag");
     const char* fragment_shader_source = fragment_shader_text.c_str();
     GLuint program = common_get_shader_program(vertex_shader_source, fragment_shader_source);
     GLuint coord2d_location = glGetAttribLocation(program, "coord2d");
@@ -212,12 +255,12 @@ int main(void) {
     glBindVertexArray(0);
 
     // Particule to trailmap shader
-    auto compute_shader_text = readFile("shaders/slime.compute");
+    auto compute_shader_text = readFile("src/shaders/slime.compute");
     const char* compute_shader_source = compute_shader_text.c_str();
     GLuint compute_program = common_get_compute_program(compute_shader_source);
 
     // Blur shader
-    auto blur_compute_shader_text = readFile("shaders/blur.compute");
+    auto blur_compute_shader_text = readFile("src/shaders/blur.compute");
     const char* blur_compute_shader_source = blur_compute_shader_text.c_str();
     GLuint blur_compute_program = common_get_compute_program(blur_compute_shader_source);
 

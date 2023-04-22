@@ -1,4 +1,4 @@
-#version 430 core
+#version 410
 
 out vec3 color;
 
@@ -8,4 +8,4 @@ layout (binding = 0) uniform sampler2D textureSampler;
 
 void main() {
     color = vec3(texture(textureSampler, fragmentUv.yx).xy, 0.0);
-};
+}
