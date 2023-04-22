@@ -125,14 +125,15 @@ int main(int argc, char *argv[]) try {
   glShaderSource(vertex_shader, 1, &vertex_shader_data, nullptr);
   glCompileShader(vertex_shader);
   glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
-  glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
-  if (log_length > 0) {
-    log.resize(log_length);
-    glGetShaderInfoLog(vertex_shader, log_length, nullptr, log.data());
-    spdlog::error("Vertex shader log : \n{}\n", log);
-  }
-  if (!success) {
-    spdlog::error("Vertex shader compile failed\n");
+  if (success != GL_TRUE) {
+    spdlog::error("Vertex shader compile failed");
+
+    glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &log_length);
+    if (log_length > 0) {
+      log.resize(log_length);
+      glGetShaderInfoLog(vertex_shader, log_length, nullptr, log.data());
+      spdlog::error("Vertex shader log : \n{}", log);
+    }
     return EXIT_FAILURE;
   }
 
@@ -143,52 +144,61 @@ int main(int argc, char *argv[]) try {
   glShaderSource(fragment_shader, 1, &fragment_shader_data, nullptr);
   glCompileShader(fragment_shader);
   glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
-  glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
-  if (log_length > 0) {
-    log.resize(log_length);
-    glGetShaderInfoLog(fragment_shader, log_length, nullptr, log.data());
-    spdlog::error("Fragment shader log : \n{}\n", log);
-  }
-  if (!success) {
-    spdlog::error("Fragment shader compile failed\n");
+  if (success != GL_TRUE) {
+    spdlog::error("Fragment shader compile failed");
+
+    glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &log_length);
+    if (log_length > 0) {
+      log.resize(log_length);
+      glGetShaderInfoLog(fragment_shader, log_length, nullptr, log.data());
+      spdlog::error("Fragment shader log : \n{}", log);
+    }
     return EXIT_FAILURE;
   }
+
   // Build Program
   GLuint shader_program = glCreateProgram();
   glAttachShader(shader_program, fragment_shader);
   glAttachShader(shader_program, vertex_shader);
   glLinkProgram(shader_program);
-  glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &log_length);
-  if (log_length > 0) {
-    log.resize(log_length);
-    glGetProgramInfoLog(shader_program, log_length, nullptr, log.data());
-    spdlog::error("Program link log : \n{}\n", log);
-  }
-  if (!success) {
-    spdlog::error("Program link failed\n");
-    return EXIT_FAILURE;
-  }
 
   GLuint vertex_buffer;
   glGenBuffers(1, &vertex_buffer);
   GLuint vpos_location = glGetAttribLocation(shader_program, "vPos");
   glGenVertexArrays(1, &vpos_location);
 
+  glBindVertexArray(vpos_location);
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+      glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glEnableVertexAttribArray(0);
+  glBindVertexArray(0);
+
   // Try to correclty bind buffer and array like in: https://github.com/g-truc/ogl-samples/blob/master/samples/gl-410-primitive-instanced.cpp
   glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  glBindVertexArray(vpos_location);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-  glEnableVertexAttribArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-  glBindVertexArray(0);
 
   GLint resolution_location = glGetUniformLocation(shader_program, "resolution");
   GLint cursor_location = glGetUniformLocation(shader_program, "cursor");
   GLint time_location = glGetUniformLocation(shader_program, "time");
+
+  glBindVertexArray(vpos_location);
+    // Validate program after all binding
+    glValidateProgram(shader_program);
+    glGetProgramiv(shader_program, GL_VALIDATE_STATUS, &success);
+    if (success != GL_TRUE) {
+      spdlog::error("Program link failed");
+
+      glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &log_length);
+      if (log_length > 0) {
+        log.resize(log_length);
+        glGetProgramInfoLog(shader_program, log_length, nullptr, log.data());
+        spdlog::error("Program link log : \n{}", log);
+      }
+      return EXIT_FAILURE;
+    }
+  glBindVertexArray(0);
 
   while (!glfwWindowShouldClose(window)) {
     int width, height;
